@@ -1,1 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>McQueen Player — Ka-chow!</title>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@600;700&family=Barlow+Condensed:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --red:        #c0001a;
+    --red-mid:    #9e0015;
+    --red-dark:   #6b000e;
+    --red-shine:  #e8303f;
+    --gold:       #d4920a;
+    --gold-light: #f2c94c;
+    --chrome:     #d8dce0;
+    --chrome-hi:  #ffffff;
+    --chrome-sh:  #8a9099;
+    --cream:      #e8d89a;
+    --black:      #0a0a0a;
+    --text:       #fff5e0;
+  }
 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow Condensed', sans-serif;
+    background: var(--black) url('wallpaper.jpg') center/cover no-repeat fixed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ── dark vignette overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.72) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ══════════════════════════════════
+     HEADER TITLE
+  ══════════════════════════════════ */
+  .title-bar {
+    position: relative; z-index: 2;
+    text-align: center;
+    margin-bottom: -8px;
+  }
+  .title-bar h1 {
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 700;
+    letter-spacing: .12em;
+    color: var(--gold-light);
+    text-shadow:
+      0 0 8px rgba(242,201,76,.6),
+      2px 3px 0 var(--red-dark),
+      4px 6px 12px rgba(0,0,0,.8);
+    text-transform: uppercase;
+  }
+  .title-bar .sub {
+    font-size: .85rem;
+    letter-spacing: .35em;
+    color: var(--chrome);
+    text-transform: uppercase;
+    opacity: .75;
+    margin-top: -4px;
+  }
+
+  /* ══════════════════════════════════
+     PLAYER WRAPPER — positions SVG + overlays
+  ══════════════════════════════════ */
+  .player-wrap {
+    position: relative; z-index: 2;
+    width: min(520px, 96vw);
+    user-select: none;
+  }
+
+  /* ══════════════════════════════════
+     THE SVG SKIN
+  ══════════════════════════════════ */
+  .player-wrap > svg {
+    width: 100%; height: auto;
+    display: block;
+    filter: drop-shadow(0 18px 48px rgba(0,0,0,.75))
+            drop-shadow(0 4px 10px rgba(192,0,26,.35));
+  }
+
+  /* ── Background body ── */
+  #_x3C_Background_x3E_ {
+    fill: url(#bodyGrad);
+    stroke: var(--red-dark);
+    stroke-width: 1.5;
+    paint-order: stroke fill;
+  }
+
+  /* ── Headlights ── */
+  #_x3C_Headlight_x3E_,
+  #_x3C_Headlight_x3E_1 {
+    fill: url(#headlightGrad);
+    stroke: var(--gold);
+    stroke-width: 1;
+    transition: filter .2s;
+  }
+  .lights-on #_x3C_Headlight_x3E_,
+  .lights-on #_x3C_Headlight_x3E_1 {
+    fill: url(#headlightOnGrad);
+    filter: drop-shadow(0 0 12px rgba(242,201,76,.9));
+  }
+
+  /* ── Smile / bumper ── */
+  #_x3C_Smile_x3E_ {
+    fill: url(#chromeGrad);
+    stroke: #a0a8b0;
+    stroke-width: .8;
+  }
+
+  /* ── Video screen ── */
+  #_x3C_Video_screen_area_x3E_ {
+    fill: #000;
+    stroke: #2a2a2a;
+    stroke-width: 1.5;
+  }
+
+  /* ── Buttons ── */
+  #_x3C_Play_button_x3E_,
+  #_x3C_Forward_button_x3E_ {
+    fill: var(--chrome);
+    transition: fill .15s;
+    cursor: pointer;
+  }
+  #_x3C_Play_button_x3E_:hover,
+  #_x3C_Forward_button_x3E_:hover { fill: var(--gold-light); }
+  #_x3C_Play_button_x3E_:active,
+  #_x3C_Forward_button_x3E_:active { fill: var(--gold); }
+
+  /* ══════════════════════════════════
+     VIDEO — absolutely over the screen rect
+     Rect in SVG viewBox (520×490):
+       x=121.93 y=62.37 w=301.16 h=172.15
+     As % of viewBox:
+       left  = 121.93/520 = 23.45%
+       top   = 62.37/490  = 12.73%
+       width = 301.16/520 = 57.92%
+       height= 172.15/490 = 35.13%
+  ══════════════════════════════════ */
+  .video-overlay {
+    position: absolute;
+    left:   23.45%;
+    top:    12.73%;
+    width:  57.92%;
+    height: 35.13%;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #000;
+    cursor: pointer;
+  }
+  .video-overlay video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* big play icon shown when paused */
+  .big-play {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.45);
+    transition: opacity .2s;
+    pointer-events: none;
+  }
+  .big-play svg { width: 36%; opacity: .9; }
+  .playing .big-play { opacity: 0; }
+
+  /* ══════════════════════════════════
+     REWIND BUTTON — mirror of Forward
+     (no shape in SVG, so we overlay it)
+     Forward poly bbox roughly: x=214.72 y=353.29 w=34.22 h=21.93
+     As %: left=41.3% top=72.1% w=6.6% h=4.5%
+     Mirror to left of smile — estimate x≈270, same y
+  ══════════════════════════════════ */
+
+  /* ══════════════════════════════════
+     LIGHTNING BOLT BADGE (decorative)
+  ══════════════════════════════════ */
+  .bolt-badge {
+    position: absolute;
+    /* near left headlight area */
+    left: 8%;  top: 65%;
+    width: 11%;
+    pointer-events: none;
+    animation: boltPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes boltPulse {
+    0%,100% { filter: drop-shadow(0 0 4px rgba(242,201,76,.4)); }
+    50%      { filter: drop-shadow(0 0 14px rgba(242,201,76,1)); }
+  }
+
+  /* ══════════════════════════════════
+     RUST-EZE BADGE (decorative)
+  ══════════════════════════════════ */
+  .rusteze-badge {
+    position: absolute;
+    left: 45%; top: 65%;
+    transform: translateX(-50%);
+    width: 9%;
+    pointer-events: none;
+    opacity: .88;
+  }
+
+  /* ══════════════════════════════════
+     PROGRESS BAR — sits between smile and buttons
+  ══════════════════════════════════ */
+  .progress-wrap {
+    position: absolute;
+    left: 26%;  width: 48%;
+    top: 79%;
+    height: 5px;
+    background: rgba(255,255,255,.15);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+    border-radius: 3px;
+    transition: width .1s linear;
+    pointer-events: none;
+  }
+
+  /* ══════════════════════════════════
+     TIME / VOLUME HUD
+  ══════════════════════════════════ */
+  .hud {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    top: 84%;
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(.7rem, 2vw, 1rem);
+    color: var(--chrome);
+    letter-spacing: .05em;
+    pointer-events: none;
+  }
+  .hud .time { color: var(--gold-light); }
+
+  .vol-wrap {
+    display: flex; align-items: center; gap: 4px;
+    pointer-events: all; cursor: pointer;
+  }
+  .vol-wrap input[type=range] {
+    -webkit-appearance: none;
+    width: 52px; height: 3px;
+    background: rgba(255,255,255,.25);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    accent-color: var(--gold-light);
+  }
+
+  /* ══════════════════════════════════
+     SPEED "95" STICKER
+  ══════════════════════════════════ */
+  .num95 {
+    position: absolute;
+    left: 9.5%; top: 65.5%;
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(.55rem, 1.8vw, .95rem);
+    font-weight: 700;
+    color: var(--red);
+    text-shadow: 0 0 3px #000;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ══════════════════════════════════
+     KA-CHOW TOAST
+  ══════════════════════════════════ */
+  .kachow {
+    position: fixed;
+    top: 14%; left: 50%; transform: translateX(-50%) scale(.6);
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 700;
+    color: var(--gold-light);
+    text-shadow: 0 0 30px rgba(242,201,76,.8), 3px 4px 0 var(--red-dark);
+    letter-spacing: .15em;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    transition: none;
+  }
+  .kachow.show {
+    animation: kachow .9s cubic-bezier(.17,.67,.27,1.3) forwards;
+  }
+  @keyframes kachow {
+    0%   { opacity:0; transform:translateX(-50%) scale(.4) rotate(-6deg); }
+    40%  { opacity:1; transform:translateX(-50%) scale(1.08) rotate(2deg); }
+    70%  { opacity:1; transform:translateX(-50%) scale(.98) rotate(-1deg); }
+    100% { opacity:0; transform:translateX(-50%) scale(1.1) rotate(0deg); }
+  }
+
+  /* ══════════════════════════════════
+     SCANLINE OVERLAY on video
+  ══════════════════════════════════ */
+  .scanlines {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,.08) 0px,
+      rgba(0,0,0,.08) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    border-radius: 3px;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <h1>⚡ McQueen TV ⚡</h1>
+  <p class="sub">Ka-chow Entertainment System</p>
+</div>
+
+<!-- KA-CHOW toast -->
+<div class="kachow" id="kachow">KA-CHOW!</div>
+
+<div class="player-wrap" id="playerWrap">
+
+  <!-- ══ SVG SKIN ══ -->
+  <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 490">
+    <defs>
+      <!-- body gradient — deep red with shine -->
+      <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#d42030"/>
+        <stop offset="28%"  stop-color="#c0001a"/>
+        <stop offset="65%"  stop-color="#9e0015"/>
+        <stop offset="100%" stop-color="#6b000e"/>
+      </linearGradient>
+      <!-- shine streak -->
+      <linearGradient id="bodyShine" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="rgba(255,255,255,0)"/>
+        <stop offset="42%"  stop-color="rgba(255,255,255,.09)"/>
+        <stop offset="52%"  stop-color="rgba(255,255,255,.18)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+      </linearGradient>
+      <!-- headlight off -->
+      <linearGradient id="headlightGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#c8b46a"/>
+        <stop offset="100%" stop-color="#8a7640"/>
+      </linearGradient>
+      <!-- headlight on -->
+      <radialGradient id="headlightOnGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%"   stop-color="#fffbe0"/>
+        <stop offset="60%"  stop-color="#f2c94c"/>
+        <stop offset="100%" stop-color="#c8882a"/>
+      </radialGradient>
+      <!-- chrome bumper -->
+      <linearGradient id="chromeGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#e8ecf0"/>
+        <stop offset="50%"  stop-color="#b0b8c4"/>
+        <stop offset="100%" stop-color="#d8dce0"/>
+      </linearGradient>
+      <!-- number decal gradient -->
+      <linearGradient id="numGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#f2c94c"/>
+        <stop offset="100%" stop-color="#d4920a"/>
+      </linearGradient>
+    </defs>
+
+    <!-- BODY -->
+    <path id="_x3C_Background_x3E_" d="M520.01,410.14c-.14-61.72-.96-75.44-5.2-82.37-.78-1.27-1.65-2.2-2.02-2.66-14.42-17.95-31.47-19.22-40.91-26.47-7-5.38-10.07-14.24-11.21-23.6h.16c-.05,0-.11,0-.16,0-1.33-10.97-.01-22.61.78-30.14,12.95-123.15,19.43-184.73-3.21-216.59C439.59,2.06,382.18,1.09,268.13.23,159.07-.6,104.15-.5,85.23,24.29c-25.63,33.59,1.34,72.95-10.43,216.59-1.36,16.57-2.88,30.22-3.98,39.38,0,0,0,0,0,0,0,0,.11,1.79.12,1.95.05,2.84-11.27,23.67-19.4,30.07-16.21,12.77-30.94,6.83-43.32,21.66C-1.92,346.09.1,363.29.2,397.3c.07,22.14.14,44.42,6.42,57.76,19.64,41.71,113.03,23.49,259.9,23.26,143.51-.23,234.61,16.88,251.88-22.46,1.7-3.86,1.67-17.82,1.6-45.72Z"/>
+    <!-- body shine -->
+    <path fill="url(#bodyShine)" d="M520.01,410.14c-.14-61.72-.96-75.44-5.2-82.37-.78-1.27-1.65-2.2-2.02-2.66-14.42-17.95-31.47-19.22-40.91-26.47-7-5.38-10.07-14.24-11.21-23.6h.16c-.05,0-.11,0-.16,0-1.33-10.97-.01-22.61.78-30.14,12.95-123.15,19.43-184.73-3.21-216.59C439.59,2.06,382.18,1.09,268.13.23,159.07-.6,104.15-.5,85.23,24.29c-25.63,33.59,1.34,72.95-10.43,216.59-1.36,16.57-2.88,30.22-3.98,39.38,0,0,0,0,0,0,0,0,.11,1.79.12,1.95.05,2.84-11.27,23.67-19.4,30.07-16.21,12.77-30.94,6.83-43.32,21.66C-1.92,346.09.1,363.29.2,397.3c.07,22.14.14,44.42,6.42,57.76,19.64,41.71,113.03,23.49,259.9,23.26,143.51-.23,234.61,16.88,251.88-22.46,1.7-3.86,1.67-17.82,1.6-45.72Z" pointer-events="none"/>
+
+    <!-- HEADLIGHTS -->
+    <path id="_x3C_Headlight_x3E_" d="M51.54,316.28c32.35-10.16,60.54-3.7,73,0v32.09c-96.51,11.97-120.03,7.27-121.92,0-2.31-8.91,26.92-25.18,48.92-32.09Z"/>
+    <path id="_x3C_Headlight_x3E_1" data-name="_x3C_Headlight_x3E_" d="M518.66,348.37c-3.92,9.19-25.54,14.81-102.13,0v-32.09c28.81-15.88,60.45-15.83,81.96,0,9.49,6.98,24.3,22.4,20.17,32.09Z"/>
+
+    <!-- SMILE / BUMPER -->
+    <path id="_x3C_Smile_x3E_" d="M131.76,386.07c4.95-11.43,67.08,26.82,160.43,11.23,74.12-12.38,111.44-49.27,119.52-39.31,10.22,12.6-33.67,91.03-104.12,108.49-90.24,22.35-182.19-65.71-175.83-80.41Z"/>
+
+    <!-- VIDEO SCREEN AREA (video overlaid in HTML) -->
+    <rect id="_x3C_Video_screen_area_x3E_" x="121.93" y="62.37" width="301.16" height="172.15" rx="4" ry="4"/>
+    <!-- screen inner bezel -->
+    <rect x="124.5" y="64.9" width="296" height="167.2" rx="3" ry="3" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1.5"/>
+
+    <!-- FORWARD BUTTON -->
+    <polygon id="_x3C_Forward_button_x3E_" points="245.1 353.29 245.1 363.41 227.57 353.29 227.57 360.71 214.72 353.29 214.72 375.22 227.57 367.8 227.57 375.22 245.1 365.1 245.1 375.22 248.94 375.22 248.94 353.29 245.1 353.29"/>
+
+    <!-- PLAY/PAUSE BUTTON -->
+    <polygon id="_x3C_Play_button_x3E_" points="314.69 364.26 295.69 353.29 295.69 375.22 314.69 364.26"/>
+
+    <!-- LIGHTNING BOLT DECAL (left side) -->
+    <g transform="translate(40,328) scale(.42)">
+      <!-- bolt shape -->
+      <polygon points="28,0 8,26 22,26 0,52 32,52 18,26 34,26" fill="url(#numGrad)" stroke="#c0001a" stroke-width="1.5"/>
+    </g>
+
+    <!-- "95" number plate -->
+    <text x="75" y="349" font-family="Teko,sans-serif" font-size="13" font-weight="700" fill="url(#numGrad)" text-anchor="middle" dominant-baseline="middle">95</text>
+
+    <!-- RUST-EZE circle badge -->
+    <circle cx="263" cy="344" r="13" fill="url(#numGrad)" stroke="#8a5c00" stroke-width="1"/>
+    <text x="263" y="341" font-family="Teko,sans-serif" font-size="5.5" font-weight="700" fill="#6b000e" text-anchor="middle">RUST-EZE</text>
+    <text x="263" y="348" font-family="Barlow Condensed,sans-serif" font-size="4" fill="#6b000e" text-anchor="middle">RACING CENTER</text>
+
+    <!-- subtle rivet dots -->
+    <circle cx="128" cy="68" r="2" fill="rgba(0,0,0,.4)"/>
+    <circle cx="420" cy="68" r="2" fill="rgba(0,0,0,.4)"/>
+    <circle cx="128" cy="232" r="2" fill="rgba(0,0,0,.4)"/>
+    <circle cx="420" cy="232" r="2" fill="rgba(0,0,0,.4)"/>
+  </svg>
+
+  <!-- ══ VIDEO OVERLAY ══ -->
+  <div class="video-overlay" id="videoOverlay">
+    <video id="vid" src="video.mp4" preload="metadata" playsinline></video>
+    <div class="big-play" id="bigPlay">
+      <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="40" cy="40" r="38" fill="rgba(0,0,0,.55)" stroke="rgba(242,201,76,.7)" stroke-width="2"/>
+        <polygon points="30,20 62,40 30,60" fill="#f2c94c"/>
+      </svg>
+    </div>
+    <div class="scanlines"></div>
+  </div>
+
+  <!-- ══ PROGRESS BAR ══ -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- ══ HUD ══ -->
+  <div class="hud">
+    <span class="time" id="timeDisplay">0:00 / 0:00</span>
+    <span>·</span>
+    <div class="vol-wrap">
+      <span>🔊</span>
+      <input type="range" id="volSlider" min="0" max="1" step="0.02" value="1"/>
+    </div>
+  </div>
+
+</div><!-- /player-wrap -->
+
+<script>
+const vid          = document.getElementById('vid');
+const playerWrap   = document.getElementById('playerWrap');
+const bigPlay      = document.getElementById('bigPlay');
+const videoOverlay = document.getElementById('videoOverlay');
+const playBtn      = document.getElementById('_x3C_Play_button_x3E_');
+const fwdBtn       = document.getElementById('_x3C_Forward_button_x3E_');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const timeDisplay  = document.getElementById('timeDisplay');
+const volSlider    = document.getElementById('volSlider');
+const kachow       = document.getElementById('kachow');
+const headlightL   = document.getElementById('_x3C_Headlight_x3E_');
+const headlightR   = document.getElementById('_x3C_Headlight_x3E_1');
+
+/* ── Play / Pause ── */
+function togglePlay() {
+  if (vid.paused) {
+    vid.play();
+    playerWrap.classList.add('playing');
+    flashLights();
+  } else {
+    vid.pause();
+    playerWrap.classList.remove('playing');
+  }
+}
+
+videoOverlay.addEventListener('click', togglePlay);
+playBtn.addEventListener('click', togglePlay);
+
+/* ── Forward +10s ── */
+fwdBtn.addEventListener('click', () => {
+  vid.currentTime = Math.min(vid.currentTime + 10, vid.duration || 0);
+});
+
+/* ── Seek via progress bar ── */
+progressWrap.addEventListener('click', e => {
+  const r   = progressWrap.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  vid.currentTime = pct * (vid.duration || 0);
+});
+
+/* ── Time update ── */
+vid.addEventListener('timeupdate', () => {
+  const cur = vid.currentTime, dur = vid.duration || 0;
+  progressFill.style.width = dur ? (cur / dur * 100) + '%' : '0%';
+  timeDisplay.textContent = fmt(cur) + ' / ' + fmt(dur);
+});
+
+vid.addEventListener('ended', () => {
+  playerWrap.classList.remove('playing');
+  showKachow();
+});
+
+/* ── Volume ── */
+volSlider.addEventListener('input', () => {
+  vid.volume = volSlider.value;
+});
+
+/* ── Headlight flash on play ── */
+function flashLights() {
+  headlightL.style.fill = 'url(#headlightOnGrad)';
+  headlightR.style.fill = 'url(#headlightOnGrad)';
+  headlightL.style.filter = 'drop-shadow(0 0 14px rgba(242,201,76,.9))';
+  headlightR.style.filter = 'drop-shadow(0 0 14px rgba(242,201,76,.9))';
+  setTimeout(() => {
+    headlightL.style.fill = '';
+    headlightR.style.fill = '';
+    headlightL.style.filter = '';
+    headlightR.style.filter = '';
+  }, 500);
+}
+
+/* ── Ka-chow toast ── */
+function showKachow() {
+  kachow.classList.remove('show');
+  void kachow.offsetWidth;
+  kachow.classList.add('show');
+  setTimeout(() => kachow.classList.remove('show'), 1000);
+}
+
+/* ── Time formatter ── */
+function fmt(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+</script>
+</body>
+</html>
