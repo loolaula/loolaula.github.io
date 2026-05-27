@@ -3,158 +3,345 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>McQueen TV - Video Player</title>
+    <title>McQueen TV - Interactive Video Player</title>
     <style>
-        body, html {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
             width: 100%;
-            height: 100%;
-            overflow: hidden;
+            height: 100vh;
             background: url('wallpaper.jpg') no-repeat center center fixed;
             background-size: cover;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Arial Black', sans-serif;
+            background-attachment: fixed;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            user-select: none;
         }
 
-        .player-container {
-            position: relative;
-            width: 80vmin;
-            height: 75vmin;
-            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+        /* TV Widget Container */
+        .tv-widget {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            touch-action: none;
+            z-index: 100;
         }
 
+        .tv-widget.dragging {
+            cursor: grabbing;
+            z-index: 101;
+        }
+
+        /* PNG Skin Layer - Visual Background */
+        .tv-skin {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('mctv.png') no-repeat center center;
+            background-size: contain;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* SVG Overlay Layer - Interactive Controls */
+        .tv-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        /* SVG Styling */
         #mcqueen-svg {
             width: 100%;
             height: 100%;
+            display: block;
         }
 
-        /* Styling the SVG Elements */
+        /* SVG Elements - Transparent Background */
         #_x3C_Background_x3E_ {
-            fill: #e60000; /* McQueen Red */
-            stroke: #990000;
-            stroke-width: 2;
+            fill: none;
+            stroke: none;
+            pointer-events: none;
         }
 
-        #_x3C_Headlight_x3E_, #_x3C_Headlight_x3E_1 {
-            fill: #ffffff;
-            stroke: #cccccc;
-            filter: drop-shadow(0 0 5px rgba(255,255,255,0.8));
+        /* Headlights - Decorative */
+        #_x3C_Headlight_x3E_,
+        #_x3C_Headlight_x3E_1 {
+            fill: none;
+            stroke: none;
+            pointer-events: none;
         }
 
+        /* Smile - Decorative */
         #_x3C_Smile_x3E_ {
-            fill: #ffffff;
-            stroke: #333333;
+            fill: none;
+            stroke: none;
+            pointer-events: none;
         }
 
-        /* Interactive Buttons */
-        #_x3C_Play_button_x3E_, #_x3C_Forward_button_x3E_ {
-            fill: #ffcc00; /* Lightning Yellow */
+        /* Video Screen Area - Non-interactive, just for reference */
+        #_x3C_Video_screen_area_x3E_ {
+            fill: none;
+            stroke: none;
+            pointer-events: none;
+        }
+
+        /* Play Button - Interactive */
+        #_x3C_Play_button_x3E_ {
+            fill: #ffcc00;
+            stroke: #ff9900;
+            stroke-width: 1.5;
             cursor: pointer;
-            transition: transform 0.1s, fill 0.2s;
+            transition: all 0.15s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         }
 
-        #_x3C_Play_button_x3E_:hover, #_x3C_Forward_button_x3E_:hover {
-            fill: #ffffff;
-            transform: scale(1.1);
+        #_x3C_Play_button_x3E_:hover {
+            fill: #ffdd33;
+            filter: drop-shadow(0 4px 8px rgba(255, 204, 0, 0.6));
             transform-origin: center;
         }
 
-        #_x3C_Play_button_x3E_:active, #_x3C_Forward_button_x3E_:active {
-            transform: scale(0.9);
+        #_x3C_Play_button_x3E_:active {
+            fill: #ffaa00;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
         }
 
-        /* Video Area Styling */
-        .video-wrapper {
+        /* Forward Button - Interactive */
+        #_x3C_Forward_button_x3E_ {
+            fill: #ffcc00;
+            stroke: #ff9900;
+            stroke-width: 1.5;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        #_x3C_Forward_button_x3E_:hover {
+            fill: #ffdd33;
+            filter: drop-shadow(0 4px 8px rgba(255, 204, 0, 0.6));
+        }
+
+        #_x3C_Forward_button_x3E_:active {
+            fill: #ffaa00;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+        }
+
+        /* Video Container */
+        .video-container {
             position: absolute;
-            /* Coordinates based on SVG viewBox 0 0 520 490 and rect x="121.93" y="62.37" width="301.16" height="172.15" */
-            left: 23.45%; /* 121.93 / 520 */
-            top: 12.73%;  /* 62.37 / 490 */
-            width: 57.91%; /* 301.16 / 520 */
-            height: 35.13%; /* 172.15 / 490 */
-            background: #000;
-            border-radius: 5px;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 4px solid #333;
-            box-shadow: inset 0 0 20px rgba(0,0,0,1);
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
         }
 
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            display: block;
         }
 
-        /* Decorative "95" Decal */
-        .decal-95 {
-            position: absolute;
-            bottom: 15%;
-            right: 10%;
-            font-size: 5vmin;
-            color: #ffcc00;
-            font-style: italic;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000;
+        /* Info Text */
+        .info-text {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 10;
             pointer-events: none;
-            user-select: none;
+        }
+
+        .info-text p {
+            margin: 5px 0;
+        }
+
+        /* Responsive sizing for different screen sizes */
+        @media (max-width: 768px) {
+            .tv-widget {
+                width: 90vw;
+                height: auto;
+                aspect-ratio: 520 / 490;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .tv-widget {
+                width: 50vw;
+                height: auto;
+                aspect-ratio: 520 / 490;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="player-container">
-        <!-- SVG Skin -->
-        <svg id="mcqueen-svg" viewBox="0 0 520 490" xmlns="http://www.w3.org/2000/svg">
-            <path id="_x3C_Background_x3E_" d="M520.01,410.14c-.14-61.72-.96-75.44-5.2-82.37-.78-1.27-1.65-2.2-2.02-2.66-14.42-17.95-31.47-19.22-40.91-26.47-7-5.38-10.07-14.24-11.21-23.6h.16c-.05,0-.11,0-.16,0-1.33-10.97-.01-22.61.78-30.14,12.95-123.15,19.43-184.73-3.21-216.59C439.59,2.06,382.18,1.09,268.13.23,159.07-.6,104.15-.5,85.23,24.29c-25.63,33.59,1.34,72.95-10.43,216.59-1.36,16.57-2.88,30.22-3.98,39.38,0,0,0,0,0,0,0,0,.11,1.79.12,1.95.05,2.84-11.27,23.67-19.4,30.07-16.21,12.77-30.94,6.83-43.32,21.66C-1.92,346.09.1,363.29.2,397.3c.07,22.14.14,44.42,6.42,57.76,19.64,41.71,113.03,23.49,259.9,23.26,143.51-.23,234.61,16.88,251.88-22.46,1.7-3.86,1.67-17.82,1.6-45.72Z"/>
-            <path id="_x3C_Headlight_x3E_" d="M51.54,316.28c32.35-10.16,60.54-3.7,73,0v32.09c-96.51,11.97-120.03,7.27-121.92,0-2.31-8.91,26.92-25.18,48.92-32.09Z"/>
-            <path id="_x3C_Headlight_x3E_1" d="M518.66,348.37c-3.92,9.19-25.54,14.81-102.13,0v-32.09c28.81-15.88,60.45-15.83,81.96,0,9.49,6.98,24.3,22.4,20.17,32.09Z"/>
-            <path id="_x3C_Smile_x3E_" d="M131.76,386.07c4.95-11.43,67.08,26.82,160.43,11.23,74.12-12.38,111.44-49.27,119.52-39.31,10.22,12.6-33.67,91.03-104.12,108.49-90.24,22.35-182.19-65.71-175.83-80.41Z"/>
-            
-            <!-- Play Button -->
-            <polygon id="_x3C_Play_button_x3E_" points="314.69 364.26 295.69 353.29 295.69 375.22 314.69 364.26" />
-            
-            <!-- Forward/Fast Forward Button -->
-            <polygon id="_x3C_Forward_button_x3E_" points="245.1 353.29 245.1 363.41 227.57 353.29 227.57 360.71 214.72 353.29 214.72 375.22 227.57 367.8 227.57 375.22 245.1 365.1 245.1 375.22 248.94 375.22 248.94 353.29 245.1 353.29" />
-        </svg>
-
-        <!-- Video Wrapper -->
-        <div class="video-wrapper">
-            <video id="main-video" src="video.mp4" poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="></video>
+    <!-- TV Widget -->
+    <div class="tv-widget" id="tvWidget">
+        <!-- Video Container (Behind PNG skin) -->
+        <div class="video-container" id="videoContainer">
+            <video id="mainVideo" src="video.mp4" preload="metadata"></video>
         </div>
 
-        <!-- Decal -->
-        <div class="decal-95">95</div>
+        <!-- PNG Skin Layer -->
+        <div class="tv-skin"></div>
+
+        <!-- SVG Controls Overlay -->
+        <div class="tv-controls">
+            <svg id="mcqueen-svg" viewBox="0 0 520 490" xmlns="http://www.w3.org/2000/svg" version="1.1">
+                <!-- Background (Transparent) -->
+                <path id="_x3C_Background_x3E_" d="M520.01,410.14c-.14-61.72-.96-75.44-5.2-82.37-.78-1.27-1.65-2.2-2.02-2.66-14.42-17.95-31.47-19.22-40.91-26.47-7-5.38-10.07-14.24-11.21-23.6h.16c-.05,0-.11,0-.16,0-1.33-10.97-.01-22.61.78-30.14,12.95-123.15,19.43-184.73-3.21-216.59C439.59,2.06,382.18,1.09,268.13.23,159.07-.6,104.15-.5,85.23,24.29c-25.63,33.59,1.34,72.95-10.43,216.59-1.36,16.57-2.88,30.22-3.98,39.38,0,0,0,0,0,0,0,0,.11,1.79.12,1.95.05,2.84-11.27,23.67-19.4,30.07-16.21,12.77-30.94,6.83-43.32,21.66C-1.92,346.09.1,363.29.2,397.3c.07,22.14.14,44.42,6.42,57.76,19.64,41.71,113.03,23.49,259.9,23.26,143.51-.23,234.61,16.88,251.88-22.46,1.7-3.86,1.67-17.82,1.6-45.72Z"/>
+
+                <!-- Headlights (Decorative) -->
+                <path id="_x3C_Headlight_x3E_" d="M51.54,316.28c32.35-10.16,60.54-3.7,73,0v32.09c-96.51,11.97-120.03,7.27-121.92,0-2.31-8.91,26.92-25.18,48.92-32.09Z"/>
+                <path id="_x3C_Headlight_x3E_1" d="M518.66,348.37c-3.92,9.19-25.54,14.81-102.13,0v-32.09c28.81-15.88,60.45-15.83,81.96,0,9.49,6.98,24.3,22.4,20.17,32.09Z"/>
+
+                <!-- Smile (Decorative) -->
+                <path id="_x3C_Smile_x3E_" d="M131.76,386.07c4.95-11.43,67.08,26.82,160.43,11.23,74.12-12.38,111.44-49.27,119.52-39.31,10.22,12.6-33.67,91.03-104.12,108.49-90.24,22.35-182.19-65.71-175.83-80.41Z"/>
+
+                <!-- Video Screen Area (Reference only) -->
+                <rect id="_x3C_Video_screen_area_x3E_" x="121.93" y="62.37" width="301.16" height="172.15"/>
+
+                <!-- Play Button -->
+                <polygon id="_x3C_Play_button_x3E_" points="314.69 364.26 295.69 353.29 295.69 375.22 314.69 364.26"/>
+
+                <!-- Forward Button -->
+                <polygon id="_x3C_Forward_button_x3E_" points="245.1 353.29 245.1 363.41 227.57 353.29 227.57 360.71 214.72 353.29 214.72 375.22 227.57 367.8 227.57 375.22 245.1 365.1 245.1 375.22 248.94 375.22 248.94 353.29 245.1 353.29"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Info Text -->
+    <div class="info-text">
+        <p>🎬 McQueen TV - Drag to move | Click buttons to control</p>
+        <p id="videoStatus">Video: Ready</p>
     </div>
 
     <script>
-        const video = document.getElementById('main-video');
-        const playBtn = document.getElementById('_x3C_Play_button_x3E_');
-        const forwardBtn = document.getElementById('_x3C_Forward_button_x3E_');
+        // ============================================
+        // DRAGGING FUNCTIONALITY
+        // ============================================
+        const tvWidget = document.getElementById('tvWidget');
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
 
-        // Play/Pause Toggle
-        playBtn.addEventListener('click', () => {
+        // Mouse events
+        tvWidget.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDrag);
+
+        // Touch events
+        tvWidget.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('touchend', stopDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            tvWidget.classList.add('dragging');
+
+            const rect = tvWidget.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const x = clientX - offsetX;
+            const y = clientY - offsetY;
+
+            tvWidget.style.left = x + 'px';
+            tvWidget.style.top = y + 'px';
+            tvWidget.style.transform = 'none';
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            tvWidget.classList.remove('dragging');
+        }
+
+        // ============================================
+        // VIDEO PLAYER FUNCTIONALITY
+        // ============================================
+        const video = document.getElementById('mainVideo');
+        const playButton = document.getElementById('_x3C_Play_button_x3E_');
+        const forwardButton = document.getElementById('_x3C_Forward_button_x3E_');
+        const videoStatus = document.getElementById('videoStatus');
+
+        // Play/Pause Button
+        playButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent dragging when clicking button
             if (video.paused) {
                 video.play();
-                playBtn.style.fill = '#ffffff';
+                videoStatus.textContent = 'Video: Playing ▶';
             } else {
                 video.pause();
-                playBtn.style.fill = '#ffcc00';
+                videoStatus.textContent = 'Video: Paused ⏸';
             }
         });
 
-        // Forward Button (Skip 10s)
-        forwardBtn.addEventListener('click', () => {
-            video.currentTime += 10;
+        // Forward Button (Skip 10 seconds)
+        forwardButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent dragging when clicking button
+            video.currentTime = Math.min(video.currentTime + 10, video.duration);
+            videoStatus.textContent = `Video: Skipped +10s (${Math.floor(video.currentTime)}s)`;
         });
 
-        // Optional: Reset play button color when video ends
-        video.addEventListener('ended', () => {
-            playBtn.style.fill = '#ffcc00';
+        // Prevent drag when interacting with buttons
+        playButton.addEventListener('mousedown', (e) => e.stopPropagation());
+        forwardButton.addEventListener('mousedown', (e) => e.stopPropagation());
+        playButton.addEventListener('touchstart', (e) => e.stopPropagation());
+        forwardButton.addEventListener('touchstart', (e) => e.stopPropagation());
+
+        // Update status on video events
+        video.addEventListener('play', () => {
+            videoStatus.textContent = 'Video: Playing ▶';
         });
+
+        video.addEventListener('pause', () => {
+            videoStatus.textContent = 'Video: Paused ⏸';
+        });
+
+        video.addEventListener('ended', () => {
+            videoStatus.textContent = 'Video: Finished ✓';
+        });
+
+        video.addEventListener('loadedmetadata', () => {
+            videoStatus.textContent = `Video: Ready (${Math.floor(video.duration)}s)`;
+        });
+
+        video.addEventListener('error', () => {
+            videoStatus.textContent = 'Video: Error loading';
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        console.log('McQueen TV Widget initialized!');
+        console.log('Drag the widget to move it around.');
+        console.log('Click the play button to play/pause.');
+        console.log('Click the forward button to skip ahead.');
     </script>
 </body>
 </html>
